@@ -1,0 +1,235 @@
+{
+  "label_definition": "RBI SMA-2 or worse: 60+ DPD ever, or any NPA-classified trade line",
+  "n_rows": 51336,
+  "n_features": 57,
+  "stress_rate": 0.10631915225183107,
+  "excluded_for_leakage": [
+    "num_std",
+    "num_std_6mts",
+    "num_std_12mts",
+    "num_sub",
+    "num_sub_6mts",
+    "num_sub_12mts",
+    "num_dbt",
+    "num_dbt_6mts",
+    "num_dbt_12mts",
+    "num_lss",
+    "num_lss_6mts",
+    "num_lss_12mts",
+    "num_times_delinquent",
+    "num_times_30p_dpd",
+    "num_times_60p_dpd",
+    "max_delinquency_level",
+    "max_recent_level_of_deliq",
+    "recent_level_of_deliq",
+    "num_deliq_6mts",
+    "num_deliq_12mts",
+    "num_deliq_6_12mts",
+    "max_deliq_6mts",
+    "max_deliq_12mts",
+    "time_since_first_deliquency",
+    "time_since_recent_deliquency",
+    "Tot_Missed_Pmnt",
+    "time_since_recent_payment",
+    "Credit_Score",
+    "Approved_Flag"
+  ],
+  "cv": {
+    "n_folds": 5,
+    "folds": [
+      {
+        "fold": 1,
+        "auc": 0.8056424297434751,
+        "ap": 0.31471717262758964,
+        "precision_top5": 0.375609756097561,
+        "precision_top10": 0.3507917174177832,
+        "recall_top10": 0.32989690721649484
+      },
+      {
+        "fold": 2,
+        "auc": 0.8142047060141592,
+        "ap": 0.33488082807670727,
+        "precision_top5": 0.4073170731707317,
+        "precision_top10": 0.35809987819732036,
+        "recall_top10": 0.33676975945017185
+      },
+      {
+        "fold": 3,
+        "auc": 0.8081601238316737,
+        "ap": 0.3166445107588873,
+        "precision_top5": 0.4292682926829268,
+        "precision_top10": 0.3629719853836784,
+        "recall_top10": 0.34096109839816935
+      },
+      {
+        "fold": 4,
+        "auc": 0.8133261389989107,
+        "ap": 0.33800150558829634,
+        "precision_top5": 0.44146341463414634,
+        "precision_top10": 0.3751522533495737,
+        "recall_top10": 0.3528064146620848
+      },
+      {
+        "fold": 5,
+        "auc": 0.8128725525997922,
+        "ap": 0.329173524654964,
+        "precision_top5": 0.4317073170731707,
+        "precision_top10": 0.36053593179049936,
+        "recall_top10": 0.33906071019473083
+      }
+    ],
+    "summary": {
+      "auc_mean": 0.8108411902376021,
+      "auc_std": 0.0037359694029894526,
+      "ap_mean": 0.32668350834128895,
+      "ap_std": 0.01055305591573758,
+      "precision_top5_mean": 0.41707317073170735,
+      "precision_top5_std": 0.026325650176735247,
+      "precision_top10_mean": 0.36151035322777103,
+      "precision_top10_std": 0.008884084057885731,
+      "recall_top10_mean": 0.3398989779843304,
+      "recall_top10_std": 0.008340655587694003
+    }
+  },
+  "test": {
+    "auc": 0.8134587141643592,
+    "ap": 0.3402463874192829,
+    "base_rate": 0.10634982469809116,
+    "precision_top5": 0.4327485380116959,
+    "precision_top10": 0.35964912280701755,
+    "precision_top20": 0.29566488066244523,
+    "recall_top10": 0.33791208791208793,
+    "recall_top20": 0.5558608058608059
+  },
+  "deciles": [
+    {
+      "decile": 1,
+      "accounts": 1027,
+      "stressed": 369,
+      "stress_rate": 0.3592989289191821,
+      "lift": 3.3784628224745066
+    },
+    {
+      "decile": 2,
+      "accounts": 1027,
+      "stressed": 238,
+      "stress_rate": 0.2317429406037001,
+      "lift": 2.179062741867026
+    },
+    {
+      "decile": 3,
+      "accounts": 1027,
+      "stressed": 162,
+      "stress_rate": 0.15774099318403115,
+      "lift": 1.4832275805985637
+    },
+    {
+      "decile": 4,
+      "accounts": 1026,
+      "stressed": 130,
+      "stress_rate": 0.1267056530214425,
+      "lift": 1.191404437018472
+    },
+    {
+      "decile": 5,
+      "accounts": 1027,
+      "stressed": 88,
+      "stress_rate": 0.08568646543330087,
+      "lift": 0.8057038709424298
+    },
+    {
+      "decile": 6,
+      "accounts": 1027,
+      "stressed": 60,
+      "stress_rate": 0.05842259006815969,
+      "lift": 0.5493435483698386
+    },
+    {
+      "decile": 7,
+      "accounts": 1026,
+      "stressed": 27,
+      "stress_rate": 0.02631578947368421,
+      "lift": 0.2474455369192211
+    },
+    {
+      "decile": 8,
+      "accounts": 1027,
+      "stressed": 12,
+      "stress_rate": 0.011684518013631937,
+      "lift": 0.1098687096739677
+    },
+    {
+      "decile": 9,
+      "accounts": 1027,
+      "stressed": 2,
+      "stress_rate": 0.0019474196689386564,
+      "lift": 0.01831145161232795
+    },
+    {
+      "decile": 10,
+      "accounts": 1027,
+      "stressed": 4,
+      "stress_rate": 0.0038948393378773127,
+      "lift": 0.0366229032246559
+    }
+  ],
+  "feature_importance": {
+    "portfolio_age_span": 0.0901620015501976,
+    "Secured_TL": 0.05857599899172783,
+    "newest_tl_age": 0.03993799909949303,
+    "Total_TL": 0.037255000323057175,
+    "open_close_imbalance": 0.035691998898983,
+    "HL_Flag": 0.034630998969078064,
+    "PL_utilization_missing": 0.029364999383687973,
+    "recent_loan_hunger": 0.021988999098539352,
+    "pct_tl_open_L6M": 0.020634999498724937,
+    "Tot_Closed_TL": 0.018022000789642334,
+    "GL_Flag": 0.017980000004172325,
+    "CC_enq_missing": 0.01781800016760826,
+    "PL_Flag": 0.017186999320983887,
+    "Tot_Active_TL": 0.01692499965429306,
+    "closure_rate": 0.01670300029218197,
+    "max_unsec_exposure_inPct_missing": 0.01642500050365925,
+    "is_male": 0.016131000593304634,
+    "first_prod_enq2_AL": 0.016127999871969223,
+    "last_prod_enq2_PL": 0.0159549992531538,
+    "enq_L6m": 0.01534000039100647,
+    "unsecured_loan_ratio": 0.015138999558985233,
+    "Unsecured_TL": 0.014361999928951263,
+    "exposure_to_income": 0.014245999976992607,
+    "balance_pressure": 0.01423299964517355,
+    "first_prod_enq2_ConsumerLoan": 0.013987000100314617,
+    "last_prod_enq2_others": 0.013921000063419342,
+    "CC_Flag": 0.013775999657809734,
+    "enquiry_rejection_proxy": 0.01329100038856268,
+    "last_prod_enq2_HL": 0.013248000293970108,
+    "pct_tl_closed_L6M": 0.013209999538958073,
+    "max_unsec_exposure_inPct": 0.013104000128805637,
+    "first_prod_enq2_others": 0.012880000285804272,
+    "CC_utilization": 0.012811999768018723,
+    "utilisation_pressure": 0.012764000333845615,
+    "last_prod_enq2_CC": 0.012364000082015991,
+    "enquiry_acceleration": 0.012149999849498272,
+    "enq_L12m": 0.011806000024080276,
+    "credit_hunger_ratio": 0.011796999722719193,
+    "CC_utilization_missing": 0.011777999810874462,
+    "PL_utilization": 0.011762999929487705,
+    "enquiry_freshness": 0.011710000224411488,
+    "enq_L3m": 0.011475999839603901,
+    "AGE": 0.011428000405430794,
+    "unsecured_product_share": 0.011389999650418758,
+    "tot_enq": 0.011281999759376049,
+    "first_prod_enq2_HL": 0.011231999844312668,
+    "log_income": 0.011137000285089016,
+    "enquiry_recency_share": 0.011118000373244286,
+    "last_prod_enq2_AL": 0.011095999740064144,
+    "is_married": 0.010780000127851963,
+    "first_prod_enq2_CC": 0.010665000416338444,
+    "income_stability": 0.010626999661326408,
+    "first_prod_enq2_PL": 0.010584999807178974,
+    "Time_With_Curr_Empr": 0.010572999715805054,
+    "education_level": 0.010215999558568,
+    "last_prod_enq2_ConsumerLoan": 0.009848999790847301,
+    "NETMONTHLYINCOME": 0.009345999918878078
+  }
+}
