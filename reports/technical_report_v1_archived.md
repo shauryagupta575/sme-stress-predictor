@@ -6,10 +6,10 @@
 
 ---
 
-## 1. Problem Statement
+## Problem Statement
 
 India has 63 million MSMEs contributing approximately 30% of GDP, yet over
-₹5 lakh crore in MSME loans are classified as non-performing assets. Existing
+INR 5 lakh crore in MSME loans are classified as non-performing assets. Existing
 credit scoring systems (CIBIL, bureau-based models) are fundamentally reactive —
 they detect financial stress only after repayment behavior has already
 deteriorated.
@@ -27,7 +27,7 @@ model C-index above 0.65.
 
 ---
 
-## 2. Data
+## Data
 
 The analysis combines five data sources:
 
@@ -46,7 +46,7 @@ Approved_Flag tier system (P2 = healthy, P1/P3/P4 = stressed).
 
 ---
 
-## 3. Feature Engineering
+## Feature Engineering
 
 Fifteen domain-specific features were engineered. The most impactful:
 
@@ -65,9 +65,9 @@ medians. Extreme outliers in debt_burden were capped at the 99th percentile.
 
 ---
 
-## 4. Methods and Results
+## Methods and Results
 
-### 4.1 Supervised Classification
+### Supervised Classification
 
 A logistic regression baseline achieved AUC-ROC 0.732. XGBoost, tuned with
 early stopping and class-weight adjustment for the imbalanced target, achieved:
@@ -79,7 +79,7 @@ early stopping and class-weight adjustment for the imbalanced target, achieved:
 SHAP TreeExplainer analysis identified enquiry_acceleration as the single most
 important feature (mean SHAP 0.73 — more than double the next feature).
 
-### 4.2 Survival Analysis
+### Survival Analysis
 
 A Kaplan-Meier analysis showed statistically significant separation between high
 and low enquiry-acceleration firms (log-rank p < 0.001). A Cox Proportional
@@ -87,7 +87,7 @@ Hazards model achieved a concordance index of **0.671**. Key hazard ratios:
 enquiry_acceleration 1.24, enquiry_rejection_proxy 1.12, active trade lines 1.07
 — all significant at p < 0.0005.
 
-### 4.3 Causal Inference
+### Causal Inference
 
 Using DoWhy, high enquiry acceleration was shown to causally increase stress
 probability by **28.7 percentage points**, controlling for age, income,
@@ -96,13 +96,13 @@ random common cause (effect unchanged), placebo treatment (effect dropped to
 0.0001), and data subset (effect stable). The relationship is causal, not merely
 correlational.
 
-### 4.4 Unsupervised Anomaly Detection
+### Unsupervised Anomaly Detection
 
 An LSTM autoencoder trained only on healthy firms achieved AUC 0.692 as an
 unsupervised anomaly detector. Stressed firms showed 4.4x higher reconstruction
 error, confirming they represent genuine anomalies relative to healthy patterns.
 
-### 4.5 Uncertainty Quantification and Ensemble
+### Uncertainty Quantification and Ensemble
 
 Conformal prediction delivered a guaranteed 90% coverage that held at 90.3% on
 the test set, with 39% of cases flagged as genuinely uncertain. A composite risk
@@ -112,7 +112,7 @@ rate.
 
 ---
 
-## 5. Domain Validation and Limitations
+## Domain Validation and Limitations
 
 Feature selection and assumptions were validated against real-world wholesale
 trading operations in India's spice and herbs sector, reflecting actual MSME cash
@@ -127,7 +127,7 @@ GST filing sequences.
 
 ---
 
-## 6. Conclusion
+## Conclusion
 
 This project demonstrates a complete, multi-method ML system for MSME stress
 prediction spanning supervised learning, survival analysis, causal inference,

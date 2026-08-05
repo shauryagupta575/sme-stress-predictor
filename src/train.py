@@ -78,6 +78,177 @@ def decile_table(y_true: np.ndarray, scores: np.ndarray) -> pd.DataFrame:
     return out
 
 
+def gold_loan_cohort(raw: pd.DataFrame, y: pd.Series) -> list[dict]:
+    """Stress rate by gold-loan count.
+
+    Worth persisting separately from feature importance: gold loans are a
+    collateral product, not a delinquency field, so nothing about this
+    relationship can be explained by label leakage. Repeated pledging and
+    redeeming of gold is a recognised working-capital bridge for small Indian
+    traders, which makes the gradient interpretable rather than incidental.
+
+    Bands are disjoint, not cumulative, so each bar is the stress rate of that
+    band alone rather than of every band above it.
+
+    IMPORTANT — read alongside gold_loan_within_exposure(). The marginal
+    gradient here is confounded: gold-loan count is strongly correlated with
+    total trade lines, and once exposure is held fixed the association reverses.
+    This function is retained because the contrast between the two is the useful
+    result, not because the marginal gradient means anything on its own.
+    """
+    base = float(y.mean())
+    gold = raw["Gold_TL"].fillna(0)
+    bands = [(0, 0, "None"), (1, 4, "1–4"), (5, 9, "5–9"),
+             (10, 19, "10–19"), (20, 39, "20–39"), (40, None, "40+")]
+    rows = []
+    for lo, hi, label in bands:
+        mask = (gold >= lo) if hi is None else (gold >= lo) & (gold <= hi)
+        n = int(mask.sum())
+        if n < 50:
+            continue
+        rate = float(y[mask].mean())
+        rows.append(
+            {
+                "band": label,
+                "accounts": n,
+                "share_of_book": n / len(raw),
+                "stress_rate": rate,
+                "lift": rate / base if base else 0.0,
+            }
+        )
+    return rows
+
+
+def gold_loan_within_exposure(raw: pd.DataFrame, y: pd.Series) -> list[dict]:
+    """Stress rate by gold-loan band, holding trade-line count fixed.
+
+    A worked example of why the exposure control matters. The marginal
+    gold-loan gradient rises monotonically and looks like a strong finding.
+    Conditioned on exposure it flattens and then reverses — borrowers with many
+    gold loans are no riskier than their same-exposure peers, and in the largest
+    stratum they are slightly safer. Gold loans are secured credit, so having
+    them may simply indicate pledgeable collateral.
+
+    The marginal gradient was Simpson's paradox: gold-loan count and trade-line
+    count move together, and the label rises with trade-line count.
+    """
+    band = labels.exposure_band(raw)
+    gold = pd.cut(
+        raw["Gold_TL"].fillna(0),
+        bins=[-1, 0, 4, 9, 10_000],
+        labels=["none", "1-4", "5-9", "10+"],
+    )
+    rows = []
+    for b in C.EXPOSURE_BAND_LABELS:
+        for g in ["none", "1-4", "5-9", "10+"]:
+            mask = ((band == b) & (gold == g)).to_numpy()
+            n = int(mask.sum())
+            if n < 40:
+                continue
+            rows.append(
+                {
+                    "exposure_band": b,
+                    "gold_band": g,
+                    "accounts": n,
+                    "stress_rate": float(y.to_numpy()[mask].mean()),
+                }
+            )
+    return rows
+
+
+def exposure_baseline(
+    raw: pd.DataFrame, y: pd.Series, idx_train, idx_test
+) -> dict:
+    """Train a model on account counts and credit-file ages alone.
+
+    This is the benchmark that matters. The label counts deterioration events,
+    so a borrower holding more accounts has more chances to register one; a
+    model can score well by doing little more than counting trade lines. The
+    exposure-only AUC is the floor, and the full model's claim to value is the
+    margin above it — not the margin above 0.5.
+    """
+    Xe_train, medians = labels.build_exposure_matrix(raw.loc[idx_train])
+    Xe_test, _ = labels.build_exposure_matrix(raw.loc[idx_test], medians)
+
+    pos_weight = (y.loc[idx_train] == 0).sum() / max(1, (y.loc[idx_train] == 1).sum())
+    model = xgb.XGBClassifier(
+        n_estimators=250, max_depth=4, learning_rate=0.05, subsample=0.8,
+        eval_metric="aucpr", random_state=RANDOM_STATE, verbosity=0, n_jobs=-1,
+        scale_pos_weight=pos_weight,
+    )
+    model.fit(Xe_train, y.loc[idx_train], verbose=False)
+    probs = model.predict_proba(Xe_test)[:, 1]
+    yt = y.loc[idx_test].to_numpy()
+    return {
+        "features": list(Xe_train.columns),
+        "auc": float(roc_auc_score(yt, probs)),
+        "ap": float(average_precision_score(yt, probs)),
+        "precision_top10": precision_at_k(yt, probs, 0.10),
+    }
+
+
+def no_overlap_variant(
+    X: pd.DataFrame, y: pd.Series, idx_train, idx_test
+) -> dict:
+    """Retrain using only features whose window does not overlap the label's.
+
+    This answers the sharpest objection to the project. The label covers the last
+    12 months and so do many features, so a burst of enquiries could be the
+    borrower reacting to their own delinquency rather than a signal preceding it.
+    The snapshot carries no as-of dates, so the ordering is unidentifiable — but
+    dropping every same-window feature gives a model that provably cannot be
+    reading post-outcome behaviour. The gap between the two is the size of the
+    doubt, stated as a number instead of a caveat.
+    """
+    keep = [c for c in X.columns if c not in set(C.WINDOW_OVERLAP_FEATURES)]
+    dropped = [c for c in X.columns if c in set(C.WINDOW_OVERLAP_FEATURES)]
+    Xn = X[keep]
+
+    pos_weight = (y.loc[idx_train] == 0).sum() / max(1, (y.loc[idx_train] == 1).sum())
+    model = xgb.XGBClassifier(**BASE_PARAMS, scale_pos_weight=pos_weight)
+    model.fit(Xn.loc[idx_train], y.loc[idx_train], verbose=False)
+    probs = model.predict_proba(Xn.loc[idx_test])[:, 1]
+    yt = y.loc[idx_test].to_numpy()
+    return {
+        "n_features": len(keep),
+        "n_dropped": len(dropped),
+        "dropped": dropped,
+        "auc": float(roc_auc_score(yt, probs)),
+        "ap": float(average_precision_score(yt, probs)),
+        "precision_top10": precision_at_k(yt, probs, 0.10),
+    }
+
+
+def stratified_metrics(
+    raw: pd.DataFrame, y: pd.Series, probs: np.ndarray, idx_test
+) -> list[dict]:
+    """Performance within comparable-exposure strata.
+
+    An overall AUC above every within-stratum AUC is the signature of a
+    confound: the model is partly ranking high-exposure borrowers above
+    low-exposure ones rather than discriminating among peers.
+    """
+    band = labels.exposure_band(raw.loc[idx_test])
+    yt = y.loc[idx_test].to_numpy()
+    rows = []
+    for name in C.EXPOSURE_BAND_LABELS:
+        mask = (band == name).to_numpy()
+        n, pos = int(mask.sum()), int(yt[mask].sum())
+        if n < 100 or pos < 20 or pos == n:
+            continue
+        rows.append(
+            {
+                "band": name,
+                "accounts": n,
+                "stressed": pos,
+                "stress_rate": float(yt[mask].mean()),
+                "auc": float(roc_auc_score(yt[mask], probs[mask])),
+                "precision_top10": precision_at_k(yt[mask], probs[mask], 0.10),
+            }
+        )
+    return rows
+
+
 def cross_validate(X: pd.DataFrame, y: pd.Series) -> dict:
     """Stratified 5-fold CV. Fixed n_estimators — no early stopping, so no fold
     gets to peek at its own validation set for the stopping decision."""
@@ -200,6 +371,40 @@ def main() -> None:
     print(deciles.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
     print()
 
+    # ── the benchmark that actually matters ─────────────────────────
+    print("Training exposure-only baseline (account counts and file ages only)...")
+    exposure = exposure_baseline(raw, y, idx_train, idx_test)
+    margin = test_metrics["auc"] - exposure["auc"]
+    print(f"  exposure-only AUC : {exposure['auc']:.4f}   ({len(exposure['features'])} features)")
+    print(f"  full model AUC    : {test_metrics['auc']:.4f}   ({X.shape[1]} features)")
+    print(f"  margin over exposure: {margin:+.4f}")
+    print()
+
+    # ── direction of the arrow ──────────────────────────────────────
+    print("Retraining without same-window features (direction-of-arrow check)...")
+    no_overlap = no_overlap_variant(X, y, idx_train, idx_test)
+    print(
+        f"  full model                       : AUC {test_metrics['auc']:.4f}  "
+        f"({X.shape[1]} features)"
+    )
+    print(
+        f"  no same-window features          : AUC {no_overlap['auc']:.4f}  "
+        f"({no_overlap['n_features']} features, {no_overlap['n_dropped']} dropped)"
+    )
+    print(f"  exposure-only floor              : AUC {exposure['auc']:.4f}")
+    print(
+        f"  cost of removing the doubt       : {no_overlap['auc'] - test_metrics['auc']:+.4f}   "
+        f"still above exposure floor by {no_overlap['auc'] - exposure['auc']:+.4f}"
+    )
+    print()
+
+    strata = stratified_metrics(raw, y, test_probs, idx_test)
+    print("Within comparable-exposure strata (trade lines held):")
+    print(pd.DataFrame(strata).to_string(index=False, float_format=lambda v: f"{v:.4f}"))
+    within = float(np.mean([s["auc"] for s in strata])) if strata else float("nan")
+    print(f"  mean within-stratum AUC: {within:.4f}   vs overall {test_metrics['auc']:.4f}")
+    print()
+
     importance = (
         pd.Series(model.feature_importances_, index=X_train.columns)
         .sort_values(ascending=False)
@@ -214,7 +419,15 @@ def main() -> None:
     )
 
     metrics = {
-        "label_definition": "RBI SMA-2 or worse: 60+ DPD ever, or any NPA-classified trade line",
+        "label_definition": (
+            "Deterioration within a fixed 12-month window: any delinquency, or "
+            "any NPA classification, in the last 12 months"
+        ),
+        "exposure_baseline": exposure,
+        "exposure_margin": margin,
+        "no_overlap_variant": no_overlap,
+        "strata": strata,
+        "mean_within_stratum_auc": within,
         "n_rows": int(len(raw)),
         "n_features": int(X.shape[1]),
         "stress_rate": float(y.mean()),
@@ -223,6 +436,8 @@ def main() -> None:
         "test": test_metrics,
         "deciles": deciles.to_dict(orient="records"),
         "feature_importance": importance.round(6).to_dict(),
+        "gold_loan_cohort": gold_loan_cohort(raw, y),
+        "gold_loan_within_exposure": gold_loan_within_exposure(raw, y),
     }
     with open(C.METRICS_PATH, "w") as fh:
         json.dump(metrics, fh, indent=2)

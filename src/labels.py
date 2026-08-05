@@ -1,70 +1,108 @@
 """Stress label construction.
 
 Kept separate from feature engineering so the label definition can be reviewed
-on its own — it is the assumption the whole project rests on.
+on its own — it is the assumption the whole project rests on. See config.py for
+why the observation window is fixed rather than lifetime.
 """
 
+import numpy as np
 import pandas as pd
 
 from . import config as C
 
 
 def build_stress_label(df: pd.DataFrame) -> pd.Series:
-    """Return the binary stress label: RBI SMA-2 bucket or worse.
+    """Return the binary stress label: deterioration within the last 12 months.
 
-    Stressed (1) if the borrower has ever been 60+ days past due, or holds any
-    trade line classified sub-standard / doubtful / loss.
+    Stressed (1) if, in the last 12 months, any trade line went delinquent or
+    was classified sub-standard / doubtful / loss.
 
     Sentinel values in the source (-99999 / -99998) mean "not reported", which
     for a delinquency count is an absence of recorded delinquency, so they are
     treated as zero rather than as missing.
     """
-    dpd = df[C.DPD_60_COL].replace(C.SENTINEL_VALUES, 0).fillna(0)
+    deliq = df[C.DELIQ_12M_COL].replace(C.SENTINEL_VALUES, 0).fillna(0)
     npa = (
-        df[C.NPA_COUNT_COLS]
+        df[C.NPA_12M_COLS]
         .replace(C.SENTINEL_VALUES, 0)
         .fillna(0)
         .sum(axis=1)
     )
-    return ((dpd > 0) | (npa > 0)).astype(int)
+    return ((deliq > 0) | (npa > 0)).astype(int)
+
+
+def has_label_columns(df: pd.DataFrame) -> bool:
+    """Whether `df` carries the source columns needed to derive the true label.
+
+    Callers should use this rather than checking config column names themselves.
+    An earlier version of the dashboard inlined those names, so renaming the
+    label columns broke batch scoring with an AttributeError that only fired on
+    upload — the one path least likely to be exercised in testing.
+    """
+    return C.DELIQ_12M_COL in df.columns and all(
+        c in df.columns for c in C.NPA_12M_COLS
+    )
+
+
+def exposure_band(df: pd.DataFrame) -> pd.Series:
+    """Bucket borrowers by number of trade lines held.
+
+    Used to report metrics within comparable-exposure strata, so the model's
+    performance can be read separately from the fact that borrowers with more
+    accounts are riskier.
+    """
+    return pd.cut(
+        df["Total_TL"].fillna(0),
+        bins=C.EXPOSURE_BANDS,
+        labels=C.EXPOSURE_BAND_LABELS,
+    )
 
 
 def label_report(df: pd.DataFrame, label: pd.Series) -> str:
-    """Human-readable summary of the label, including the SMA-2/NPA split."""
-    dpd = df[C.DPD_60_COL].replace(C.SENTINEL_VALUES, 0).fillna(0)
+    """Human-readable summary, including the exposure gradient the fixed window
+    was chosen to reduce."""
+    deliq = df[C.DELIQ_12M_COL].replace(C.SENTINEL_VALUES, 0).fillna(0)
     npa = (
-        df[C.NPA_COUNT_COLS].replace(C.SENTINEL_VALUES, 0).fillna(0).sum(axis=1)
+        df[C.NPA_12M_COLS].replace(C.SENTINEL_VALUES, 0).fillna(0).sum(axis=1)
     )
-    dpd_only = ((dpd > 0) & (npa == 0)).sum()
-    npa_only = ((npa > 0) & (dpd == 0)).sum()
-    both = ((dpd > 0) & (npa > 0)).sum()
+    deliq_only = ((deliq > 0) & (npa == 0)).sum()
+    npa_only = ((npa > 0) & (deliq == 0)).sum()
+    both = ((deliq > 0) & (npa > 0)).sum()
 
     lines = [
-        "Stress label: RBI SMA-2 or worse (60+ DPD, or NPA-classified trade line)",
-        f"  total rows        : {len(label):,}",
-        f"  stressed          : {int(label.sum()):,} ({label.mean():.2%})",
-        f"  60+ DPD only      : {dpd_only:,}",
-        f"  NPA only          : {npa_only:,}",
-        f"  both              : {both:,}",
+        "Stress label: deterioration within a fixed 12-month observation window",
+        "  (any delinquency, or any NPA classification, in the last 12 months)",
+        f"  total rows          : {len(label):,}",
+        f"  stressed            : {int(label.sum()):,} ({label.mean():.2%})",
+        f"  delinquency only    : {deliq_only:,}",
+        f"  NPA classified only : {npa_only:,}",
+        f"  both                : {both:,}",
     ]
 
-    # Contrast against the original Approved_Flag-derived label, if present.
-    if "Approved_Flag" in df.columns:
-        old = (df["Approved_Flag"] != "P2").astype(int)
-        agree = (old == label).mean()
+    # The exposure gradient: how much the label rises purely with account count.
+    band = exposure_band(df)
+    grad = label.groupby(band, observed=True).mean()
+    if len(grad) > 1:
         lines += [
             "",
-            "Contrast with the original Approved_Flag label (P2=healthy):",
-            f"  original stress rate : {old.mean():.2%}",
-            f"  agreement with new   : {agree:.2%}",
-            "  stress rate by Approved_Flag tier under the new label:",
+            "  Prevalence by number of trade lines held:",
+            "    " + "   ".join(f"{k}: {v:.1%}" for k, v in grad.items()),
+            f"    gradient (highest band / lowest band): {grad.iloc[-1] / grad.iloc[0]:.2f}x",
+            "    (the lifetime label this replaced ran at 5.45x)",
         ]
-        by_tier = label.groupby(df["Approved_Flag"]).mean().sort_index()
-        for tier, rate in by_tier.items():
-            lines.append(f"    {tier}: {rate:.2%}")
-        lines.append(
-            "  -> Approved_Flag barely separates genuine stress, which is why "
-            "the original label could not support the project's claims."
-        )
 
     return "\n".join(lines)
+
+
+def build_exposure_matrix(df: pd.DataFrame, medians: pd.Series | None = None):
+    """Feature matrix for the exposure-only baseline model.
+
+    Account counts and credit-file ages only. Whatever AUC this reaches is the
+    floor the full model has to clear to be worth anything — a far more honest
+    benchmark than 0.5.
+    """
+    X = df[C.EXPOSURE_COLS].replace(C.SENTINEL_VALUES, np.nan)
+    X = X.assign(age_span=X["Age_Oldest_TL"] - X["Age_Newest_TL"])
+    if medians is None:
+        medians = X.median()
+    return X.fillna(medians), medians

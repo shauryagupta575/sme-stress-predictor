@@ -11,21 +11,74 @@ intuition inside a notebook — is what makes the leakage argument auditable.
 ID_COL = "PROSPECTID"
 
 # ── Label definition ────────────────────────────────────────────────
-# Stress = the account sits in RBI's SMA-2 bucket or worse.
+# Stress = the borrower deteriorated inside a FIXED 12-month observation window.
 #
 # Under RBI's Income Recognition and Asset Classification (IRAC) norms an
 # account is tracked as SMA-0 (1-30 days overdue), SMA-1 (31-60), SMA-2 (61-90)
-# and NPA (90+). SMA-2 is the supervisory threshold at which Indian banks are
-# required to report and act on a stressed account, which makes it the natural
-# operational definition of "stressed" for an early-warning system.
+# and NPA (90+). The SMA framework is a rolling current-state view — it is what
+# supervisors and lenders actually monitor month to month.
 #
-# We mark a borrower stressed if either:
-#   - they have ever been 60+ days past due (SMA-2 or worse), or
-#   - they hold any trade line classified sub-standard, doubtful or loss (NPA).
-DPD_60_COL = "num_times_60p_dpd"
-NPA_COUNT_COLS = ["num_sub", "num_dbt", "num_lss"]
+# We mark a borrower stressed if, within the last 12 months, either:
+#   - any trade line went delinquent, or
+#   - any trade line was classified sub-standard, doubtful or loss (NPA).
+#
+# WHY A FIXED WINDOW — this is the important design decision.
+# An earlier version used a lifetime definition ("ever 60+ days past due").
+# That is not exposure-comparable: a borrower holding 20 accounts over 15 years
+# has mechanically more opportunities to have slipped once than a borrower with
+# 2 accounts over 3 years, so the label partly measured how much credit history
+# someone had rather than how much distress. It showed up in the data:
+#
+#   label prevalence, 11+ accounts vs 1-2 accounts   exposure-only-model AUC
+#   lifetime label          5.45x                            0.782
+#   fixed 12-month window   2.39x                            0.698
+#
+# The "exposure-only" figure is the AUC reachable using nothing but account
+# counts and credit-file ages — a floor that any honest evaluation has to beat.
+# Moving to a fixed window cut it by 0.084 and more than halved the prevalence
+# gradient. The residual 2.39x is not assumed to be artefact: holding many
+# credit lines is plausibly correlated with real risk. It is reported rather
+# than explained away, and metrics are also broken out within exposure bands.
+DELIQ_12M_COL = "num_deliq_12mts"
+NPA_12M_COLS = ["num_sub_12mts", "num_dbt_12mts", "num_lss_12mts"]
 
 LABEL_COL = "stress_label"
+
+# Account-count and credit-age fields, used to build the exposure-only baseline
+# model and the exposure strata. These stay available as ordinary features — the
+# point is to measure how far the full model beats them, not to ban them.
+EXPOSURE_COLS = [
+    "Total_TL", "Tot_Active_TL", "Tot_Closed_TL",
+    "Age_Oldest_TL", "Age_Newest_TL",
+]
+EXPOSURE_BANDS = [0, 2, 5, 10, 10_000]
+EXPOSURE_BAND_LABELS = ["1-2", "3-5", "6-10", "11+"]
+
+# ── Window overlap: the direction-of-the-arrow problem ──────────────
+# The label covers the last 12 months. So do many of the features. A borrower who
+# went delinquent in month 3 may then have made a burst of enquiries and opened
+# accounts in months 4-12 precisely BECAUSE they were in distress — in which case
+# `enq_L3m` is a consequence of the outcome, not a signal of it. The source is a
+# single cross-sectional snapshot with no as-of dates, so the ordering cannot be
+# recovered from the data and the direction is formally unidentifiable.
+#
+# What can be done is bound the exposure to it. These are the features whose
+# measurement window overlaps the label window; retraining without them gives a
+# model that cannot be reading post-outcome behaviour, and the gap between the two
+# is the honest size of the concern. See train.py::no_overlap_variant.
+#
+# Data-availability indicators (`*_missing`) are deliberately NOT listed: they
+# describe whether a field was ever reported, not activity inside the window.
+WINDOW_OVERLAP_FEATURES = [
+    # engineered from 3/6/12-month activity counts
+    "enquiry_acceleration", "enquiry_recency_share", "credit_hunger_ratio",
+    "enquiry_freshness", "recent_loan_hunger", "closure_rate",
+    "open_close_imbalance",
+    # depend on the newest account's age, which may fall inside the window
+    "portfolio_age_span", "newest_tl_age",
+    # raw windowed counts carried through
+    "enq_L3m", "enq_L6m", "enq_L12m", "pct_tl_open_L6M", "pct_tl_closed_L6M",
+]
 
 # ── Leakage boundary ────────────────────────────────────────────────
 # 1. Asset classification counts. These ARE the label for the NPA half.
@@ -38,10 +91,12 @@ ASSET_CLASS_COLS = [
     "num_lss", "num_lss_6mts", "num_lss_12mts",
 ]
 
-# 2. Delinquency and days-past-due history. num_times_60p_dpd is half the label
-#    outright; the rest are the same underlying event counted a different way
-#    (max_delinquency_level correlates 0.54 with the label, num_times_delinquent
-#    0.57). A model given these is reading the answer, not predicting it.
+# 2. Delinquency and days-past-due history. num_deliq_12mts IS the label; the
+#    rest are the same underlying event counted a different way or over a
+#    different window. Lifetime measures such as num_times_60p_dpd would be
+#    defensible predictors of a 12-month-window label, but they are excluded
+#    anyway so the claim can stay absolute: no delinquency or payment-behaviour
+#    field of any kind reaches the model.
 DELINQUENCY_COLS = [
     "num_times_delinquent", "num_times_30p_dpd", "num_times_60p_dpd",
     "max_delinquency_level", "max_recent_level_of_deliq", "recent_level_of_deliq",
@@ -144,7 +199,6 @@ from pathlib import Path as _Path
 PROJECT_ROOT = _Path(__file__).resolve().parent.parent
 
 MERGED_DATA = str(PROJECT_ROOT / "data/processed/credit_merged_clean.csv")
-FEATURE_TABLE = str(PROJECT_ROOT / "data/processed/features_v2.csv")
 FEATURE_PARAMS = str(PROJECT_ROOT / "models/feature_params.json")
 MODEL_PATH = str(PROJECT_ROOT / "models/stress_model_v2.pkl")
 METRICS_PATH = str(PROJECT_ROOT / "models/metrics_v2.json")

@@ -10,7 +10,7 @@
     ],
     "enquiry_acceleration": [
       0.0,
-      101.66500000000087
+      101.0
     ],
     "enquiry_rejection_proxy": [
       0.0,
@@ -18,7 +18,7 @@
     ],
     "exposure_to_income": [
       0.0,
-      2.7744343548387183
+      2.780468564593305
     ],
     "recent_loan_hunger": [
       0.0,
@@ -29,8 +29,8 @@
       3.5
     ],
     "utilisation_pressure": [
-      0.372,
-      0.9175
+      0.3726675,
+      0.9179999999999999
     ]
   },
   "education_order": {
@@ -42,7 +42,7 @@
     "SSC": 1,
     "UNDER GRADUATE": 3
   },
-  "income_max": 2500000.0,
+  "income_max": 700000.0,
   "indicator_cols": [
     "CC_enq",
     "CC_utilization",
@@ -59,7 +59,7 @@
     "CC_enq": 0.0,
     "CC_enq_L12m": 0.0,
     "CC_enq_L6m": 0.0,
-    "CC_utilization": 0.744,
+    "CC_utilization": 0.737,
     "Consumer_TL": 0.0,
     "GL_Flag": 0.0,
     "Gold_TL": 0.0,
@@ -72,7 +72,7 @@
     "PL_enq": 0.0,
     "PL_enq_L12m": 0.0,
     "PL_enq_L6m": 0.0,
-    "PL_utilization": 0.835,
+    "PL_utilization": 0.836,
     "Secured_TL": 1.0,
     "Time_With_Curr_Empr": 93.0,
     "Tot_Active_TL": 1.0,
@@ -86,15 +86,15 @@
     "enq_L12m": 2.0,
     "enq_L3m": 1.0,
     "enq_L6m": 1.0,
-    "max_unsec_exposure_inPct": 1.81,
+    "max_unsec_exposure_inPct": 1.84,
     "pct_CC_enq_L6m_of_L12m": 0.0,
     "pct_CC_enq_L6m_of_ever": 0.0,
     "pct_PL_enq_L6m_of_L12m": 0.0,
     "pct_PL_enq_L6m_of_ever": 0.0,
-    "pct_active_tl": 0.56,
-    "pct_closed_tl": 0.44,
-    "pct_currentBal_all_TL": 0.621,
-    "pct_of_active_TLs_ever": 0.56,
+    "pct_active_tl": 0.562,
+    "pct_closed_tl": 0.438,
+    "pct_currentBal_all_TL": 0.619,
+    "pct_of_active_TLs_ever": 0.562,
     "pct_opened_TLs_L6m_of_L12m": 0.0,
     "pct_tl_closed_L12M": 0.0,
     "pct_tl_closed_L6M": 0.0,
@@ -110,10 +110,10 @@
     "Auto_TL": 0.0,
     "CC_Flag": 0.0,
     "CC_TL": 0.0,
-    "CC_enq": 0.1224554397584494,
-    "CC_enq_L12m": 0.1224554397584494,
-    "CC_enq_L6m": 0.1224554397584494,
-    "CC_utilization": 0.928776663095354,
+    "CC_enq": 0.1225771890523035,
+    "CC_enq_L12m": 0.1225771890523035,
+    "CC_enq_L6m": 0.1225771890523035,
+    "CC_utilization": 0.9283870653550209,
     "Consumer_TL": 0.0,
     "GL_Flag": 0.0,
     "Gold_TL": 0.0,
@@ -123,10 +123,10 @@
     "Other_TL": 0.0,
     "PL_Flag": 0.0,
     "PL_TL": 0.0,
-    "PL_enq": 0.1224554397584494,
-    "PL_enq_L12m": 0.1224554397584494,
-    "PL_enq_L6m": 0.1224554397584494,
-    "PL_utilization": 0.866854972241161,
+    "PL_enq": 0.1225771890523035,
+    "PL_enq_L12m": 0.1225771890523035,
+    "PL_enq_L6m": 0.1225771890523035,
+    "PL_utilization": 0.8657105288789325,
     "Secured_TL": 0.0,
     "Time_With_Curr_Empr": 0.0,
     "Tot_Active_TL": 0.0,
@@ -137,25 +137,25 @@
     "Total_TL_opened_L12M": 0.0,
     "Total_TL_opened_L6M": 0.0,
     "Unsecured_TL": 0.0,
-    "enq_L12m": 0.1224554397584494,
-    "enq_L3m": 0.1224554397584494,
-    "enq_L6m": 0.1224554397584494,
-    "max_unsec_exposure_inPct": 0.4520307782214863,
+    "enq_L12m": 0.1225771890523035,
+    "enq_L3m": 0.1225771890523035,
+    "enq_L6m": 0.1225771890523035,
+    "max_unsec_exposure_inPct": 0.45039933768384144,
     "pct_CC_enq_L6m_of_L12m": 0.0,
     "pct_CC_enq_L6m_of_ever": 0.0,
     "pct_PL_enq_L6m_of_L12m": 0.0,
     "pct_PL_enq_L6m_of_ever": 0.0,
     "pct_active_tl": 0.0,
     "pct_closed_tl": 0.0,
-    "pct_currentBal_all_TL": 0.0012905425148534138,
+    "pct_currentBal_all_TL": 0.0013635920911658711,
     "pct_of_active_TLs_ever": 0.0,
     "pct_opened_TLs_L6m_of_L12m": 0.0,
     "pct_tl_closed_L12M": 0.0,
     "pct_tl_closed_L6M": 0.0,
     "pct_tl_open_L12M": 0.0,
     "pct_tl_open_L6M": 0.0,
-    "time_since_recent_enq": 0.1224554397584494,
-    "tot_enq": 0.1224554397584494
+    "time_since_recent_enq": 0.1225771890523035,
+    "tot_enq": 0.1225771890523035
   },
-  "tenure_max": 1020.0
+  "tenure_max": 936.0
 }
